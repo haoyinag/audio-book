@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>E-Book Reader</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+        #content {
+            flex: 1;
+            overflow-y: auto;
+            margin-bottom: 100px;
+        }
+        #controls {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: #f0f0f0;
+            padding: 10px;
+            text-align: center;
+        }
+        button {
+            margin: 0 10px;
+            padding: 5px 10px;
+        }
+        #progress {
+            width: 100%;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1 id="chapterTitle"></h1>
+    <div id="content"></div>
+    <div id="controls">
+        <button id="prevChapter">上一章</button>
+        <button id="playPause">播放</button>
+        <button id="nextChapter">下一章</button>
+        <audio id="audioPlayer"></audio>
+        <input type="range" id="progress" min="0" max="100" value="0">
+    </div>
+
+    <script>
+        const chapters = {{ chapters|tojson|safe }};
+        let currentChapter = 0;
+        const content = document.getElementById('content');
+        const chapterTitle = document.getElementById('chapterTitle');
+        const audio = document.getElementById('audioPlayer');
+        const playPauseBtn = document.getElementById('playPause');
+        const progressBar = document.getElementById('progress');
+
+        function loadChapter(index) {
+            const chapter = chapters[index];
+            chapterTitle.textContent = chapter.title;
+            content.textContent = chapter.content;
+            audio.src = `/audio/${chapter.audio_file}`;
+            currentChapter = index;
+            audio.load(); // 确保新的音频文件被加载
+        }
+
+        function updateProgress() {
+            if (audio.duration && isFinite(audio.duration)) {
+                const percent = (audio.currentTime / audio.duration) * 100;
+                progressBar.value = percent;
+            }
+        }
+
+        document.getElementById('prevChapter').addEventListener('click', () => {
+            if (currentChapter > 0) loadChapter(currentChapter - 1);
+        });
+
+        document.getElementById('nextChapter').addEventListener('click', () => {
+            if (currentChapter < chapters.length - 1) loadChapter(currentChapter + 1);
+        });
+
+        playPauseBtn.addEventListener('click', () => {
+            if (audio.paused) {
+                audio.play();
+                playPauseBtn.textContent = '暂停';
+            } else {
+                audio.pause();
+                playPauseBtn.textContent = '播放';
+            }
+        });
+
+        audio.addEventListener('ended', () => {
+            if (currentChapter < chapters.length - 1) {
+                loadChapter(currentChapter + 1);
+                audio.play();
+            }
+        });
+
+        audio.addEventListener('timeupdate', updateProgress);
+
+        progressBar.addEventListener('input', () => {
+            if (audio.duration && isFinite(audio.duration)) {
+                const time = (progressBar.value / 100) * audio.duration;
+                if (isFinite(time)) {
+                    audio.currentTime = time;
+                }
+            }
+        });
+
+        audio.addEventListener('loadedmetadata', () => {
+            if (!isFinite(audio.duration)) {
+                console.error('Invalid audio duration:', audio.duration);
+                // 可以在这里添加用户提示
+            }
+        });
+
+        loadChapter(0);
+    </script>
+</body>
+</html>
